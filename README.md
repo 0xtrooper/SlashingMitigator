@@ -8,12 +8,12 @@ The `SlashingMitigator` is a tool designed to monitor and mitigate slashing even
 
 ### Functions
 
-- `NewSlashingMitigator(ctx context.Context, logger *slog.Logger, beaconNode string, indexesToMonitor []uint64) (*SlashingMitigator, error)`: Creates a new instance of `SlashingMitigator`.
-- `Start(ctx context.Context) error`: Starts the slashing mitigator to begin monitoring for slashing events.
-- `Stop(ctx context.Context)`: Stops the slashing mitigator.
-- `CheckBeaconBlock(ctx context.Context, blockId string) (bool, error)`: Checks a specific block for slashing events.
-- `checkAttesterSlashings(slashings []client.AttesterSlashing) bool`: Checks for attester slashings in a block.
-- `checkProposerSlashings(slashings []client.ProposerSlashing) bool`: Checks for proposer slashings in a block.
+- `NewSlashingMitigator(..)`: Creates a new instance of `SlashingMitigator`.
+- `Start(..) error`: Starts the slashing mitigator to begin monitoring for slashing events.
+- `Stop()`: Stops the slashing mitigator.
+- `CheckBeaconBlock(..)`: Checks a specific block for slashing events.
+- `checkAttesterSlashings(..)`: Checks for attester slashings in a block.
+- `checkProposerSlashings(..)`: Checks for proposer slashings in a block.
 
 ### Flags
 

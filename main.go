@@ -81,5 +81,7 @@ func main() {
 		}
 	}
 
+	sm.Stop()
+
 	fmt.Println("Exiting...")
 }

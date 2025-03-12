@@ -56,7 +56,7 @@ func (sm *SlashingMitigator) Start(ctx context.Context) error {
 	return nil
 }
 
-func (sm *SlashingMitigator) Stop(ctx context.Context) {
+func (sm *SlashingMitigator) Stop() {
 	if sm.eventLoopCancelFucn != nil {
 		sm.eventLoopCancelFucn()
 	}
