@@ -8,13 +8,22 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"slashingMitigator/slashingMitigator"
+	"slashingMitigator/slashingMonitor"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
 type InputData struct {
 	beaconNode string
 	logger     *slog.Logger
+
+	waitForSync bool
+
+	shutdownCmd  string
+	testShutdown bool
+
+	validatorIndex []uint64
 }
 
 func parseInput() (*InputData, error) {
@@ -22,6 +31,10 @@ func parseInput() (*InputData, error) {
 
 	beaconNode := flag.String("beacon-node", "http://localhost:5052", "Address of the beacon node")
 	debugFlag := flag.Bool("debug", false, "Enable debug logging")
+	waitForSyncFlag := flag.Bool("wait-for-sync", false, "Wait for the beacon node to sync before starting")
+	shutdownCmdFlag := flag.String("shutdown-cmd", "rocketpool service stop -y", "Command to run on shutdown")
+	shutdownTestFlag := flag.Bool("shutdown-test", false, "Run the shutdown command and exit")
+	validatorIndexFlag := flag.String("validator-index", "", "Validator index to monitor")
 	flag.Parse()
 
 	data.beaconNode = *beaconNode
@@ -37,10 +50,45 @@ func parseInput() (*InputData, error) {
 		data.logger = slog.Default()
 	}
 
+	data.waitForSync = *waitForSyncFlag
+
+	data.shutdownCmd = *shutdownCmdFlag
+	if data.shutdownCmd == "" {
+		return nil, fmt.Errorf("shutdown command cannot be empty")
+	}
+
+	data.testShutdown = *shutdownTestFlag
+
+	// we dont need to check for validator index if we are testing shutdown
+	if *validatorIndexFlag == "" {
+		if !data.testShutdown {
+			return nil, fmt.Errorf("validator index cannot be empty")
+		} else {
+			data.validatorIndex = []uint64{1} // this is only a dummy value for testing
+		}
+	} else {
+		validatorIndexes := strings.Split(strings.TrimSpace(*validatorIndexFlag), ",")
+		for _, idx := range validatorIndexes {
+			parsedIdx, err := strconv.ParseUint(strings.TrimSpace(idx), 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("validator index: \"%s\" is invalid: %v", strings.TrimSpace(idx), err)
+			}
+			data.validatorIndex = append(data.validatorIndex, parsedIdx)
+		}
+	}
+
 	return data, nil
 }
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -53,23 +101,24 @@ func main() {
 
 	data, err := parseInput()
 	if err != nil {
-		fmt.Println("Error parsing input: ", err.Error())
-		return
+		return fmt.Errorf("error parsing input: %v", err)
 	}
 
-	sm, err := slashingMitigator.NewSlashingMitigator(ctx, data.logger, data.beaconNode, []uint64{791764, 5, 10})
+	sm, err := slashingMonitor.NewSlashingMonitor(ctx, data.logger, data.beaconNode, data.shutdownCmd, data.validatorIndex)
 	if err != nil {
-		fmt.Println("Error creating slashing mitigator: ", err.Error())
-		return
+		return fmt.Errorf("error creating slashing mitigator: %v", err)
 	}
 
-	err = sm.Start(ctx)
+	if data.testShutdown {
+		return sm.ExecuteShutdown(ctx)
+	}
+
+	err = sm.Start(ctx, data.waitForSync)
 	if err != nil {
-		fmt.Println("Error starting slashing mitigator: ", err.Error())
-		return
+		return fmt.Errorf("error starting slashing mitigator: %v", err)
 	}
 
-	fmt.Println("Starting slashing mitigator...")
+	data.logger.Info("Slashing mitigator started")
 
 	// Wait for signal.
 	sigCh := make(chan os.Signal, 1)
@@ -83,5 +132,6 @@ func main() {
 
 	sm.Stop()
 
-	fmt.Println("Exiting...")
+	data.logger.Info("Slashing mitigator stopped")
+	return nil
 }

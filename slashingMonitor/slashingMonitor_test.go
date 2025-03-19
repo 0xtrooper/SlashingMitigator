@@ -1,4 +1,4 @@
-package slashingMitigator
+package slashingMonitor
 
 import (
 	"context"
@@ -28,8 +28,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func getTestSlashingMitigator(t *testing.T, indexes []uint64) *SlashingMitigator {
-	sm, err := NewSlashingMitigator(ctx, logger, *beaconNode, indexes)
+func getTestSlashingMonitor(t *testing.T, indexes []uint64) *SlashingMonitor {
+	sm, err := NewSlashingMonitor(ctx, logger, *beaconNode, "", indexes)
 	if err != nil {
 		t.Errorf("Error creating slashing mitigator: %v", err)
 		return nil
@@ -38,45 +38,45 @@ func getTestSlashingMitigator(t *testing.T, indexes []uint64) *SlashingMitigator
 	return sm
 }
 
-func TestSlashingMitigator_CheckBeaconBlock(t *testing.T) {
+func TestSlashingMonitor_CheckBeaconBlock(t *testing.T) {
 	tests := []struct {
 		name    string
-		sm      *SlashingMitigator
+		sm      *SlashingMonitor
 		blockId uint64
 		want    bool
 		wantErr bool
 	}{
 		{
 			name:    "Test block before the slashing",
-			sm:      getTestSlashingMitigator(t, []uint64{slashedValidatorIndex}),
+			sm:      getTestSlashingMonitor(t, []uint64{slashedValidatorIndex}),
 			blockId: slashingBlock - 1,
 			want:    false,
 			wantErr: false,
 		},
 		{
 			name:    "Test slashing block",
-			sm:      getTestSlashingMitigator(t, []uint64{slashedValidatorIndex}),
+			sm:      getTestSlashingMonitor(t, []uint64{slashedValidatorIndex}),
 			blockId: slashingBlock,
 			want:    true,
 			wantErr: false,
 		},
 		{
 			name:    "Test block after the slashing",
-			sm:      getTestSlashingMitigator(t, []uint64{slashedValidatorIndex}),
+			sm:      getTestSlashingMonitor(t, []uint64{slashedValidatorIndex}),
 			blockId: slashingBlock + 1,
 			want:    false,
 			wantErr: false,
 		},
 		{
 			name:    "Test monitoring multiple validators",
-			sm:      getTestSlashingMitigator(t, []uint64{slashedValidatorIndex, otherValidatorIndexA, otherValidatorIndexB}),
+			sm:      getTestSlashingMonitor(t, []uint64{slashedValidatorIndex, otherValidatorIndexA, otherValidatorIndexB}),
 			blockId: slashingBlock,
 			want:    true,
 			wantErr: false,
 		},
 		{
 			name:    "Test monitor other validator",
-			sm:      getTestSlashingMitigator(t, []uint64{otherValidatorIndexA}),
+			sm:      getTestSlashingMonitor(t, []uint64{otherValidatorIndexA}),
 			blockId: slashingBlock,
 			want:    false,
 			wantErr: false,
@@ -86,13 +86,13 @@ func TestSlashingMitigator_CheckBeaconBlock(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := tt.sm.CheckBeaconBlock(ctx, strconv.Itoa(int(tt.blockId)))
+			got, err := tt.sm.CheckBeaconBlock(ctx, "", strconv.Itoa(int(tt.blockId)))
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlashingMitigator.CheckBeaconBlock(%d) error = %v, wantErr %v", tt.blockId, err, tt.wantErr)
+				t.Errorf("SlashingMonitor.CheckBeaconBlock(%d) error = %v, wantErr %v", tt.blockId, err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SlashingMitigator.CheckBeaconBlock(%d) = %v, want %v", tt.blockId, got, tt.want)
+				t.Errorf("SlashingMonitor.CheckBeaconBlock(%d) = %v, want %v", tt.blockId, got, tt.want)
 			}
 		})
 	}
